@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIKO - Safety Bike App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        /* Splash screen styles */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ff2a61; /* Primary background color */
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 1000;
+            animation: fadeOut 0.8s ease-out 1s forwards; /* Faster fade-out with delay */
+        }
+
+        .splash-screen.hidden {
+            display: none; /* Hide the splash screen */
+        }
+
+        .splash-screen img {
+            width: 300px;
+            height: auto;
+            margin-bottom: 20px;
+            animation: bounce 1s infinite alternate; /* Logo animation */
+        }
+
+        /* Keyframe animations */
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+                visibility: visible;
+            }
+            100% {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        @keyframes bounce {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .splash-screen img {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splash-screen">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="App Logo">
+    </div>
+
+    <header class="header">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BIKO Logo" class="logo">
+    </header>
+    <!-- Display flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="flash-message {{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+    <main class="main-content">
+        <div class="login-container">
+            <form action="/login" method="POST">
+                <label for="username">User:</label>
+                <input type="text" id="username" name="username" placeholder="Your name here..." required>
+                <button type="submit" class="btn">Login</button>
+                <a href="/register" >Register</a>
+            </form>
+            
+            {% if message %}
+                <p style="color: red; margin-top: 10px;">{{ message }}</p>
+            {% endif %}
+        </div>
+        <p>SAFETY IN MOTION</p>
+    </main>
+
+    <!-- JavaScript to handle splash screen logic -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check if the splash screen has already been shown
+            if (sessionStorage.getItem("splashShown")) {
+                document.getElementById("splash-screen").classList.add("hidden");
+            } else {
+                // Mark the splash screen as shown
+                sessionStorage.setItem("splashShown", "true");
+                // Remove the splash screen after the fadeOut animation
+                setTimeout(() => {
+                    document.getElementById("splash-screen").classList.add("hidden");
+                }, 1800); // Match the total duration of the animation
+            }
+        });
+    </script>
+</body>
+</html>

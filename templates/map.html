@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIKO - Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: 'MyCustomFont', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #ff2a61;
+            color: rgb(255, 255, 255);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header a {
+            position: absolute;
+            left: 60px;
+            background-color: #ffffff;
+            color: #ff2a61;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header a:hover {
+            background-color: #ffffff;
+            color: rgb(0, 0, 0);
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        /* Hide "Home" button on mobile devices */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .header a {
+                display: none; /* Hide the home button on small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/login">Home</a>
+        <h1>Biko Locations</h1>
+    </header>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+ <script>
+        // Initialize the map and set its view to Lisbon
+        const map = L.map('map').setView([38.7169, -9.1390], 13); // Lisbon coordinates
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add custom icons
+        const bikeIcon = L.icon({
+            iconUrl: '/static/images/butterfly.png',
+            iconSize: [30, 30], // Size of the icon
+            iconAnchor: [20, 40], // Anchor the icon at its base
+        });
+
+        const stationIcon = L.icon({
+            iconUrl: '/static/images/station.png',
+            iconSize: [40, 40], // Size of the icon
+            iconAnchor: [15, 30], // Anchor the icon at its base
+        });
+
+        // Define bike locations
+        const bikeLocations = [
+            {% for bike in bike_locations %}
+                {
+                    coords: [{{ bike.coords.split(',')[0] }}, {{ bike.coords.split(',')[1] }}],
+                    popup: "Biko: {{ bike.popup }}"
+                },
+            {% endfor %}
+        ];
+
+        // Define station locations
+        const stationLocations = [
+            {% for station in station_locations %}
+                {
+                    coords: [{{ station.coords.split(',')[0] }}, {{ station.coords.split(',')[1] }}],
+                    popup: "Occupation: {{ station.popup }}%"
+                },
+            {% endfor %}
+        ];
+
+        // Add markers for each station location
+        stationLocations.forEach(location => {
+            const marker = L.marker(location.coords, { icon: stationIcon }).addTo(map);
+            marker.bindPopup(`<b>${location.popup}</b>`);
+        });
+
+        // Add markers for each bike location
+        bikeLocations.forEach(location => {
+            const marker = L.marker(location.coords, { icon: bikeIcon }).addTo(map);
+            marker.bindPopup(`<b>${location.popup}</b>`);
+        });
+
+        
+    </script>
+</body>
+</html>

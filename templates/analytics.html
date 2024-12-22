@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIKO - Analytics</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'MyCustomFont', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            background-color: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #ff2a61;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header a {
+            position: absolute;
+            left: 60px;
+            background-color: white;
+            color: #ff2a61;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header a:hover {
+            background-color: #fff;
+            color: rgb(0, 0, 0);
+        }
+
+        .main-content {
+            padding: 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .analytics-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+        }
+
+        .analytics-card h2 {
+            margin: 0 0 10px;
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .analytics-card p {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .analytics-card .highlight {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ff2a61;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header a {
+                display: none; /* Hide the home button on small screens */
+            }
+
+            .analytics-card {
+                padding: 30px;
+            }
+
+            .analytics-card h2 {
+                font-size: 1.2rem;
+            }
+
+            .analytics-card .highlight {
+                font-size: 1.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .analytics-grid {
+                grid-template-columns: 1fr; /* Single column layout */
+            }
+
+            .analytics-card {
+                padding: 20px;
+            }
+
+            .analytics-card .highlight {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/login">Home</a>
+        <h1>{{ user }}'s Analytics</h1>
+    </header>
+    <main class="main-content">
+        <div class="analytics-grid">
+            <!-- User's Bike -->
+            <div class="analytics-card">
+                <h2>Your Biko</h2>
+                <p>Biko Name: <span class="highlight">{{ bike_info['bike_name'] }}</span></p>
+                <p>Biko ID: <span class="highlight">{{ bike_info['bike_id'] }}</span></p>
+            </div>
+
+            <!-- Bike Location -->
+            <div class="analytics-card">
+                <h2>Biko Location</h2>
+                <p>Coordinates: <span class="highlight">{{ bike_info['bike_park'] }}</span></p>
+            </div>
+
+            <!-- Battery Status -->
+            <div class="analytics-card">
+                <h2>Battery Status</h2>
+                <p>Battery Level: <span class="highlight">{{ bike_info['battery'] }}%</span></p>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
