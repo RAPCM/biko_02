@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Reader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 2em;
+        }
+        #message, #tagId {
+            margin-top: 1em;
+            font-size: 1.2em;
+            color: green;
+        }
+        #error {
+            color: red;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>NFC Card Reader</h1>
+    <p>Click the button below and scan your NFC card/tag:</p>
+    <button id="startButton">Start NFC Scan</button>
+    <div id="tagId"></div>
+    <div id="message"></div>
+    <div id="error"></div>
+
+    <script>
+        const startButton = document.getElementById("startButton");
+        const tagIdDiv = document.getElementById("tagId");
+        const messageDiv = document.getElementById("message");
+        const errorDiv = document.getElementById("error");
+
+        // Check if Web NFC API is supported
+        if ('NDEFReader' in window) {
+            startButton.addEventListener('click', async () => {
+                try {
+                    const nfcReader = new NDEFReader();
+                    await nfcReader.scan();
+                    messageDiv.textContent = "Scan started! Please tap an NFC card/tag...";
+                    errorDiv.textContent = "";
+
+                    // Event triggered when an NFC card is read
+                    nfcReader.onreading = (event) => {
+                        const { serialNumber, message } = event;
+
+                        // Display Tag ID
+                        if (serialNumber) {
+                            tagIdDiv.textContent = `Tag ID: ${serialNumber}`;
+                        } else {
+                            tagIdDiv.textContent = "Tag ID not available.";
+                        }
+
+                        // Display the content of the NFC tag
+                        for (const record of message.records) {
+                            if (record.recordType === "text") {
+                                const decoder = new TextDecoder(record.encoding);
+                                messageDiv.textContent = `Message: ${decoder.decode(record.data)}`;
+                            } else {
+                                messageDiv.textContent = "NFC Tag Detected but no text data.";
+                            }
+                        }
+                    };
+
+                    nfcReader.onreadingerror = () => {
+                        errorDiv.textContent = "Error reading NFC tag!";
+                    };
+                } catch (error) {
+                    errorDiv.textContent = `Error: ${error.message}`;
+                }
+            });
+        } else {
+            messageDiv.textContent = "Web NFC API is not supported on this browser.";
+        }
+    </script>
+</body>
+</html>
