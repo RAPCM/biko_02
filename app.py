@@ -266,6 +266,10 @@ def logout():
     session.pop("logged_in_user", None)  # Clear session
     return redirect(url_for("index"))
 
+@app.route('/camera')
+def live_camera():
+    return render_template('camera.html')
+
 
 @app.route('/receive_json', methods=['POST'])
 def receive_json():
