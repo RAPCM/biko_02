@@ -129,6 +129,10 @@ def get_bike_status():
 def index():
     return render_template('index.html')
 
+@app.route('/nfc')
+def nfc():
+    return render_template('nfc.html')
+
 @app.route('/login', methods=["GET", "POST"])
 def login():
     if request.method == "POST":
