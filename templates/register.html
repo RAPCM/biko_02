@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIKO - Register</title>
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
+    <title>BIKO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         .header {
@@ -36,6 +37,31 @@
             font-size: 1rem;
             font-weight: bold;
             transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Hide "Home" button on mobile devices */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .header a {
+                display: none; /* Hide the home button on small screens */
+            }
+
+            .login-container {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .btn {
+                font-size: 0.9rem;
+                padding: 8px;
+            }
         }
     </style>
 </head>

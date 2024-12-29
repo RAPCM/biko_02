@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <title>Live Camera</title>
+    <title>BIKO</title>
     <style>
         body {
             display: flex;
@@ -14,6 +15,7 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+            user-select: none;
         }
         iframe {
             width: 100%; /* Full width */
@@ -57,6 +59,21 @@
             background-color: #fff;
             color: rgb(0, 0, 0);
         }
+
+        /* Hide "Home" button on mobile devices */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .header a {
+                display: none; /* Hide the home button on small screens */
+            }
+        }
     </style>
 </head>
 <body>
@@ -64,7 +81,7 @@
         <a href="/login">Home</a>
         <h1>Live Camera</h1>
     </header>
-    <iframe src="http://192.168.68.76:8080" frameborder="0" allowfullscreen></iframe>
+    <iframe src="http://172.20.10.5:5000" frameborder="0" allowfullscreen></iframe>
     <script>
         function goBack() {
             window.location.href = '/';

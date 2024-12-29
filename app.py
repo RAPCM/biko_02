@@ -69,39 +69,104 @@ def register():
     return render_template("register.html")
 
 
+
+
+
+
+
+
+# Global dictionary to store commands and associated bike IDs
+station_commands = {}
+
 @app.route('/toggle_bike_status', methods=["POST"])
 def toggle_bike_status():
+    """
+    Toggle the bike's lock/unlock status, optionally update the station, and track the command for each station.
+    """
     if "logged_in_user" not in session:
+        print("Error: User not logged in.")
         return jsonify({"status": "error", "message": "Not logged in"}), 401
 
-    # Reload the Excel data dynamically
+    # Load Excel data
     excel_data_sheet1 = load_excel("Sheet1")
+    station_data = load_excel("Sheet3")
     logged_in_user = session["logged_in_user"]
 
-    # Parse bike_id from JSON request
+    # Parse request data
     request_data = request.get_json()
-    bike_id = request_data.get("bike_id")
+    print(f"Received request: {request_data}")  # Debugging
 
+    bike_id = request_data.get("bike_id")
+    station_name = request_data.get("station_name")  # Optional, only for locking
     if not bike_id:
         return jsonify({"status": "error", "message": "Bike ID is required"}), 400
 
-    # Find the row corresponding to the user's bike
-    user_row_index = excel_data_sheet1[(excel_data_sheet1["user"] == logged_in_user) & (excel_data_sheet1["bike_id"] == int(bike_id))].index
-    if not user_row_index.empty:
-        user_row_index = user_row_index[0]
-
-        # Toggle bike status
-        current_status = excel_data_sheet1.at[user_row_index, "bike_status"]
-        new_status = 0 if current_status == 1 else 1
-        excel_data_sheet1.at[user_row_index, "bike_status"] = new_status
-
-        # Save the updated Excel file
-        save_excel(excel_data_sheet1, "Sheet1")
-
-        # Return success message
-        return jsonify({"status": "success", "new_status": new_status})
-    else:
+    # Find the user's bike
+    user_row_index = excel_data_sheet1[
+        (excel_data_sheet1["user"] == logged_in_user) & (excel_data_sheet1["bike_id"] == int(bike_id))
+    ].index
+    if user_row_index.empty:
         return jsonify({"status": "error", "message": "Bike not found"}), 404
+
+    user_row_index = user_row_index[0]
+
+    # Get the current status
+    current_status = excel_data_sheet1.at[user_row_index, "bike_status"]
+
+    # Determine the new status and command
+    if current_status == 1:  # Currently locked, unlock the bike
+        new_status = 0
+        current_command = "unlock"
+        excel_data_sheet1.at[user_row_index, "bike_park"] = None  # Clear station
+        excel_data_sheet1.at[user_row_index, "bike_coord"] = None  # Clear coordinates
+    else:  # Currently unlocked, lock the bike
+        if not station_name:
+            return jsonify({"status": "error", "message": "Station name is required to lock the bike"}), 400
+
+        # Find the station in Sheet3
+        station_row = station_data[station_data["statio"] == station_name]
+        if station_row.empty:
+            return jsonify({"status": "error", "message": "Station not found"}), 404
+
+        new_status = 1
+        current_command = "lock"
+        excel_data_sheet1.at[user_row_index, "bike_park"] = station_name
+        excel_data_sheet1.at[user_row_index, "bike_coord"] = station_row.iloc[0]["coord"]
+
+    # Update the bike's status
+    excel_data_sheet1.at[user_row_index, "bike_status"] = new_status
+    save_excel(excel_data_sheet1, "Sheet1")
+
+    # Update the global dictionary with the latest command and bike ID
+    station_commands["station"] = {"command": current_command, "bike_id": bike_id}
+
+    print(f"Updated status: {new_status}, command: {current_command}, station_commands: {station_commands}")
+    return jsonify({
+        "status": "success",
+        "command": current_command,
+        "message": f"Bike status updated to {'locked' if new_status == 1 else 'unlocked'}."
+        
+    })
+
+
+@app.route('/get_command/1', methods=['GET'])
+def get_command():
+    """
+    Return the current command and bike ID for a station.
+    """
+    if "station" not in station_commands:
+        print("No command found for the station.")  # Debugging
+        return jsonify({"status": "waiting for biko"}), 404
+
+    command_data = station_commands["station"]
+    print(f"get_command called: {command_data}")  # Debugging
+
+    return jsonify({
+        "command": command_data["command"],
+        "bike_id": int(command_data["bike_id"])
+    })
+
+
 
 
 @app.route('/api/get_bike_status', methods=["GET"])
@@ -109,18 +174,73 @@ def get_bike_status():
     if "logged_in_user" not in session:
         return jsonify({"status": "error", "message": "Not logged in"}), 401
 
-    # Dynamically reload the latest Excel data
-    excel_data_sheet1 = load_excel("Sheet1")
-    logged_in_user = session["logged_in_user"]
+    try:
+        # Reload Excel sheets dynamically
+        excel_data_sheet1 = load_excel("Sheet1")
+        station_data = load_excel("Sheet3")  # Station data for dropdown
 
-    # Find the user's bike
-    user_row = excel_data_sheet1[excel_data_sheet1["user"] == logged_in_user]
-    if not user_row.empty:
-        bike_status = int(user_row.iloc[0]["bike_status"])  # Convert to Python int
-        bike_id = int(user_row.iloc[0]["bike_id"])          # Convert to Python int
-        return jsonify({"status": "success", "bike_status": bike_status, "bike_id": bike_id})
-    else:
+        logged_in_user = session["logged_in_user"]
+
+        # Find the user's bike
+        user_row = excel_data_sheet1[excel_data_sheet1["user"] == logged_in_user]
+        if not user_row.empty:
+            bike_status = int(user_row.iloc[0]["bike_status"])  # 0: unlocked, 1: locked
+            bike_id = int(user_row.iloc[0]["bike_id"])
+            current_station = user_row.iloc[0]["bike_park"]  # Current station if parked
+
+            # If the bike is locked, only return the current station
+            if bike_status == 1:
+                available_stations = [
+                    {"id": current_station, "name": current_station, "occupancy": None}
+                ]
+            else:
+                # If the bike is unlocked, return all stations from Sheet3
+                available_stations = [
+                    {"id": row.get("station_id", row["statio"]),  # Use station_id if available, otherwise statio
+                     "name": row["statio"],
+                     "occupancy": row.get("occup", "N/A")}  # Handle missing occupancy
+                    for _, row in station_data.iterrows()
+                ]
+
+            return jsonify({
+                "status": "success",
+                "bike_status": bike_status,
+                "bike_id": bike_id,
+                "current_station": current_station if bike_status == 1 else None,
+                "stations": available_stations,
+            })
+
         return jsonify({"status": "error", "message": "Bike not found"}), 404
+    except Exception as e:
+        print("Error in get_bike_status:", str(e))
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+
+
+
+
+@app.route('/post_command/1', methods=['POST'])
+def post_command():
+    """
+    Simple route to receive a POST request and print the data to the console.
+    """
+    try:
+        # Get the JSON payload from the request
+        data = request.get_json()
+        print("Received POST command:", data)  # Print the data to the console
+
+        # Return a simple success response
+        return jsonify({"status": "success", "message": "Command received"}), 200
+
+    except Exception as e:
+        # Handle any errors and return a failure response
+        print("Error handling POST command:", str(e))
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
+
+
+
+
 
 
 
@@ -132,6 +252,10 @@ def index():
 @app.route('/nfc')
 def nfc():
     return render_template('nfc.html')
+
+@app.route('/park')
+def park():
+    return render_template('park.html')
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
@@ -175,20 +299,19 @@ def notifications():
         # Notification for bike still parked
         if bike_status == 1:
             notifications.append({
-                "message": f"⚠️ {bike_name} is still parked at {bike_park}.",
+                "message": f"⚠️ {bike_name} is parked at {bike_park}.",
                 "type": "warning",
                 "time": time.strftime("%I:%M %p")  # Current time
             })
         # Notification for bike not in the same place
         elif bike_status == 0:
             notifications.append({
-                "message": f"❗ {bike_name} is not at {bike_park} anymore!",
+                "message": f"❗ {bike_name} is not parked!",
                 "type": "danger",
                 "time": time.strftime("%I:%M %p")  # Current time
             })
 
     return render_template('notifications.html', notifications=notifications)
-
 
 @app.route('/stats')
 def stats():
@@ -211,7 +334,6 @@ def stats():
     # Render the stats.html page with user ride data
     return render_template("stats.html", user=logged_in_user, stats=ride_stats)
 
-
 @app.route("/analytics")
 def analytics():
     if "logged_in_user" not in session:
@@ -220,23 +342,28 @@ def analytics():
     # Get the logged-in user from session
     logged_in_user = session["logged_in_user"]
 
+    # Reload the Excel data dynamically
+    excel_data_sheet1 = load_excel("Sheet1")  # Dynamically load the latest data
+
     # Filter Excel data for the logged-in user
-    user_data = excel_data[excel_data["user"] == logged_in_user].iloc[0]
+    user_data = excel_data_sheet1[excel_data_sheet1["user"] == logged_in_user]
+    if user_data.empty:
+        flash("No data found for the logged-in user", "error")
+        return redirect(url_for("index"))  # Redirect to index if no user data is found
+
+    user_data = user_data.iloc[0]  # Select the first row of user data
 
     # Extract bike information
     bike_info = {
         "bike_park": user_data["bike_park"],
         "bike_id": user_data["bike_id"],
         "bike_name": user_data["bike_name"],
-        "battery": user_data["bike_bat"],
+        "battery": user_data.get("bike_bat", "N/A"),  # Handle missing battery field gracefully
         "coordinates": user_data["bike_coord"]
     }
 
-    print(bike_info)
-
     # Render analytics.html with the logged-in user's data
     return render_template("analytics.html", user=logged_in_user, bike_info=bike_info)
-
 
 
 @app.route("/map")
@@ -263,8 +390,6 @@ def map_view():
     # Render map.html with bike and station location data
     return render_template("map.html", station_locations=station_locations, bike_locations=bike_locations)
 
-
-
 @app.route('/logout')
 def logout():
     session.pop("logged_in_user", None)  # Clear session
@@ -274,35 +399,64 @@ def logout():
 def live_camera():
     return render_template('camera.html')
 
-
-@app.route('/receive_json', methods=['POST'])
-def receive_json():
+@app.route('/api/get_stations', methods=['GET'])
+def get_stations():
+    """
+    API endpoint to return station data with coordinates and occupancy.
+    """
     try:
-        # Get JSON data from the request
-        json_data = request.get_json()
+        # Load the station data from the Excel file (Sheet3)
+        station_data = load_excel("Sheet3")
 
-        if not json_data:
-            return jsonify({"status": "error", "message": "No JSON data received"}), 400
+        # Process station data to return in JSON format
+        stations = []
+        for _, row in station_data.iterrows():
+            if pd.notna(row["coord"]) and pd.notna(row["occup"]):
+                stations.append({
+                    "id": row.get("station_id", None),  # Optional: station ID
+                    "coords": row["coord"],
+                    "occupancy": row["occup"],
+                    "name": row.get("statio", "Unnamed Station")  # Optional station name
+                })
 
-        # Log the received data (for debugging)
-        print("Received JSON:", json_data)
-
-        # Process the JSON data (Example: store it in a file or process it further)
-        # Here, let's save the JSON data to a local file
-        with open("received_data.json", "w") as f:
-            import json
-            json.dump(json_data, f, indent=4)
-
-        # Return a success response
-        return jsonify({"status": "success", "message": "JSON data received and saved"}), 200
-
+        return jsonify({"status": "success", "stations": stations})
     except Exception as e:
-        # Handle errors
-        print("Error:", str(e))
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print("Error in get_stations:", str(e))  # Debug: Print the error
+        return jsonify({"status": "error", "message": str(e)})
 
-#if __name__ == "__main__":
-#    app.run(host="0.0.0.0", port=8080, debug=True)
+
+
+@app.route('/api/locked-devices', methods=['GET'])
+def api_locked_devices():
+    # Load data from "Sheet1"
+    excel_data_sheet1 = load_excel(sheet_name="Sheet1")
+    # Filter rows where bike_status is 1 (locked)
+    locked_bikes = excel_data_sheet1[excel_data_sheet1["bike_status"] == 1]
+    # Extract the bike IDs of locked bikes
+    locked_bike_ids = locked_bikes["bike_id"].tolist()
+    # Return the locked bike IDs as a JSON response
+    return jsonify({"locked_bike_ids": locked_bike_ids})
+
+@app.route('/api/report-theft', methods=['POST'])
+def api_report_theft():
+    try:
+        data = request.get_json()
+        rfid = data.get("rfid")
+        rsu_id = data.get("rsu_id")
+        timestamp = data.get("timestamp")
+        if not rfid or not rsu_id or not timestamp:
+            return jsonify({"status": "error", "message": "Missing required data"}), 400
+        # Log the theft report (you can also save it to a file or database)
+        print(f"Theft Report: RFID={rfid}, RSU_ID={rsu_id}, Timestamp={timestamp}")
+        return jsonify({"status": "success", "message": "Theft reported successfully"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message":str(e)}),500
+
+
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5050, debug=True)
+
+#if __name__ == "__main__":
+#    app.run(debug=True)
