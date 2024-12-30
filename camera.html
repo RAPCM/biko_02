@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>BIKO</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+        iframe {
+            width: 100%; /* Full width */
+            height: 100%; /* Custom height */
+            border: 2px solid black;
+            transform-origin: center; /* Rotate around the center */
+        }
+        .header {
+            background-color: #ff2a61;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header a {
+            position: absolute;
+            left: 60px;
+            background-color: white;
+            color: #ff2a61;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header a:hover {
+            background-color: #fff;
+            color: rgb(0, 0, 0);
+        }
+
+        /* Hide "Home" button on mobile devices */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .header a {
+                display: none; /* Hide the home button on small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/login">Home</a>
+        <h1>Live Camera</h1>
+    </header>
+    <iframe src="http://172.20.10.5:5000" frameborder="0" allowfullscreen></iframe>
+    <script>
+        function goBack() {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

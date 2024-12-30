@@ -78,13 +78,12 @@ def register():
 # Global dictionary to store commands and associated bike IDs
 station_commands = {}
 
+import threading
+
 @app.route('/toggle_bike_status', methods=["POST"])
 def toggle_bike_status():
-    """
-    Toggle the bike's lock/unlock status, optionally update the station, and track the command for each station.
-    """
+    global station_commands  # Ensure we are modifying the global variable
     if "logged_in_user" not in session:
-        print("Error: User not logged in.")
         return jsonify({"status": "error", "message": "Not logged in"}), 401
 
     # Load Excel data
@@ -92,14 +91,9 @@ def toggle_bike_status():
     station_data = load_excel("Sheet3")
     logged_in_user = session["logged_in_user"]
 
-    # Parse request data
     request_data = request.get_json()
-    print(f"Received request: {request_data}")  # Debugging
-
-    bike_id = request_data.get("bike_id")
-    station_name = request_data.get("station_name")  # Optional, only for locking
-    if not bike_id:
-        return jsonify({"status": "error", "message": "Bike ID is required"}), 400
+    bike_id = str(request_data.get("bike_id"))  # Convert to string
+    station_name = request_data.get("station_name")
 
     # Find the user's bike
     user_row_index = excel_data_sheet1[
@@ -109,21 +103,17 @@ def toggle_bike_status():
         return jsonify({"status": "error", "message": "Bike not found"}), 404
 
     user_row_index = user_row_index[0]
-
-    # Get the current status
     current_status = excel_data_sheet1.at[user_row_index, "bike_status"]
 
-    # Determine the new status and command
-    if current_status == 1:  # Currently locked, unlock the bike
+    if current_status == 1:
         new_status = 0
         current_command = "unlock"
-        excel_data_sheet1.at[user_row_index, "bike_park"] = None  # Clear station
-        excel_data_sheet1.at[user_row_index, "bike_coord"] = None  # Clear coordinates
-    else:  # Currently unlocked, lock the bike
+        excel_data_sheet1.at[user_row_index, "bike_park"] = None
+        excel_data_sheet1.at[user_row_index, "bike_coord"] = None
+    else:
         if not station_name:
             return jsonify({"status": "error", "message": "Station name is required to lock the bike"}), 400
 
-        # Find the station in Sheet3
         station_row = station_data[station_data["statio"] == station_name]
         if station_row.empty:
             return jsonify({"status": "error", "message": "Station not found"}), 404
@@ -133,20 +123,36 @@ def toggle_bike_status():
         excel_data_sheet1.at[user_row_index, "bike_park"] = station_name
         excel_data_sheet1.at[user_row_index, "bike_coord"] = station_row.iloc[0]["coord"]
 
-    # Update the bike's status
-    excel_data_sheet1.at[user_row_index, "bike_status"] = new_status
-    save_excel(excel_data_sheet1, "Sheet1")
-
-    # Update the global dictionary with the latest command and bike ID
     station_commands["station"] = {"command": current_command, "bike_id": bike_id}
 
-    print(f"Updated status: {new_status}, command: {current_command}, station_commands: {station_commands}")
-    return jsonify({
-        "status": "success",
-        "command": current_command,
-        "message": f"Bike status updated to {'locked' if new_status == 1 else 'unlocked'}."
-        
-    })
+    start_time = time.time()
+    initial_confirmation = confirmation_status.get(bike_id)
+    while True:
+        updated_confirmation = confirmation_status.get(bike_id)
+        if updated_confirmation != initial_confirmation:
+            if isinstance(updated_confirmation, dict):
+                if updated_confirmation.get("success") is True:
+                    excel_data_sheet1.at[user_row_index, "bike_status"] = new_status
+                    save_excel(excel_data_sheet1, "Sheet1")
+                    print("DB UPDATED")
+                    confirmation_status[bike_id] = None
+                    station_commands = {}
+                    return jsonify({"status": "success", "message": f"Bike status updated to {'locked' if new_status == 1 else 'unlocked'}."})
+                elif updated_confirmation.get("success") is False:
+                    error_message = updated_confirmation.get("error", "Unknown error occurred")
+                    print("Mensagem de erro:", error_message)
+                    confirmation_status[bike_id] = None
+                    station_commands = {}
+                    return jsonify({"status": "error", "message": error_message})
+
+        if time.time() - start_time > 10:
+            confirmation_status[bike_id] = None
+            station_commands = {}
+            return jsonify({"status": "error", "message": "No response received from the device."})
+
+        time.sleep(0.5)
+
+
 
 
 @app.route('/get_command/1', methods=['GET'])
@@ -156,15 +162,51 @@ def get_command():
     """
     if "station" not in station_commands:
         print("No command found for the station.")  # Debugging
-        return jsonify({"status": "waiting for biko"}), 404
+        return jsonify({"status": "waiting for biko"})
 
     command_data = station_commands["station"]
     print(f"get_command called: {command_data}")  # Debugging
 
     return jsonify({
         "command": command_data["command"],
-        "bike_id": int(command_data["bike_id"])
+        "bike_id": int(command_data["bike_id"]),
+        "status": "success"
     })
+
+
+confirmation_status = {}
+
+@app.route('/post_command/1', methods=['POST'])
+def post_command():
+    """
+    Handle confirmation of bike status commands.
+    """
+    try:
+        # Get the JSON payload from the request
+        data = request.get_json()
+        print("Received POST command from RSU:", data)  # Debugging
+
+        # Update confirmation status
+        bike_id = str(data.get("bike_id"))  # Store bike_id as a string
+        success = data.get("success", False)
+        error = data.get("error", None)
+
+        if bike_id:
+            # Store success and error details as a dictionary
+            confirmation_status[bike_id] = {
+                "success": success,
+                "error": error
+            }
+
+        # Return a simple success response
+        return jsonify({"status": "success", "message": "Command received"}), 200
+
+    except Exception as e:
+        # Handle any errors and return a failure response
+        print("Error handling POST command:", str(e))
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
+
+
 
 
 
@@ -220,25 +262,6 @@ def get_bike_status():
 
 
 
-@app.route('/post_command/1', methods=['POST'])
-def post_command():
-    """
-    Simple route to receive a POST request and print the data to the console.
-    """
-    try:
-        # Get the JSON payload from the request
-        data = request.get_json()
-        print("Received POST command:", data)  # Print the data to the console
-
-        # Return a simple success response
-        return jsonify({"status": "success", "message": "Command received"}), 200
-
-    except Exception as e:
-        # Handle any errors and return a failure response
-        print("Error handling POST command:", str(e))
-        return jsonify({"status": "error", "message": "Invalid request"}), 400
-
-
 
 
 
@@ -275,6 +298,36 @@ def login():
     # Handle GET request
     return render_template("login.html", user="Guest")
 
+
+# Shared list to store notifications (in-memory solution)
+theft_notifications = []
+
+@app.route('/api/report-theft', methods=['POST'])
+def api_report_theft():
+    try:
+        data = request.get_json()
+        rfid = data.get("rfid")
+        rsu_id = data.get("rsu_id")
+        timestamp = data.get("timestamp")
+        if not rfid or not rsu_id or not timestamp:
+            return jsonify({"status": "error", "message": "Missing required data"}), 400
+
+        # Log the theft report (you can also save it to a file or database)
+        print(f"Theft Report: your BIKO={rfid} was stolen, Timestamp={timestamp}")
+
+        # Add a dangerous notification
+        theft_notifications.append({
+            "message": f"❗ Theft reported: your biko {rfid} was stolen.",
+            "type": "danger",
+            "time": time.strftime("%I:%M %p")  # Current time
+        })
+
+        return jsonify({"status": "success", "message": "Theft reported successfully"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+
 @app.route('/notifications')
 def notifications():
     if "logged_in_user" not in session:
@@ -289,29 +342,36 @@ def notifications():
     # Filter the Excel data for the logged-in user
     user_data = excel_data_sheet1[excel_data_sheet1["user"] == logged_in_user]
 
-    # Check the bike status and location for notifications
     notifications = []
-    for _, row in user_data.iterrows():
-        bike_name = row["bike_name"]
-        bike_park = row["bike_park"]
-        bike_status = row["bike_status"]
 
-        # Notification for bike still parked
-        if bike_status == 1:
-            notifications.append({
-                "message": f"⚠️ {bike_name} is parked at {bike_park}.",
-                "type": "warning",
-                "time": time.strftime("%I:%M %p")  # Current time
-            })
-        # Notification for bike not in the same place
-        elif bike_status == 0:
-            notifications.append({
-                "message": f"❗ {bike_name} is not parked!",
-                "type": "danger",
-                "time": time.strftime("%I:%M %p")  # Current time
-            })
+    # Check if there are any theft notifications
+    if theft_notifications:
+        # Add only the theft notifications and skip further processing
+        notifications.extend(theft_notifications)
+    else:
+        # Generate bike notifications only if there are no theft notifications
+        for _, row in user_data.iterrows():
+            bike_name = row["bike_name"]
+            bike_park = row["bike_park"]
+            bike_status = row["bike_status"]
+
+            # Notification for bike still parked
+            if bike_status == 1:
+                notifications.append({
+                    "message": f"✅ {bike_name} is parked at {bike_park}.",
+                    "type": "success",
+                    "time": time.strftime("%I:%M %p")  # Current time
+                })
+            elif bike_status == 0:
+                notifications.append({
+                    "message": f"⚠️ {bike_name} is not parked.",
+                    "type": "warning",
+                    "time": time.strftime("%I:%M %p")  # Current time
+                })
 
     return render_template('notifications.html', notifications=notifications)
+
+
 
 @app.route('/stats')
 def stats():
@@ -437,20 +497,6 @@ def api_locked_devices():
     # Return the locked bike IDs as a JSON response
     return jsonify({"locked_bike_ids": locked_bike_ids})
 
-@app.route('/api/report-theft', methods=['POST'])
-def api_report_theft():
-    try:
-        data = request.get_json()
-        rfid = data.get("rfid")
-        rsu_id = data.get("rsu_id")
-        timestamp = data.get("timestamp")
-        if not rfid or not rsu_id or not timestamp:
-            return jsonify({"status": "error", "message": "Missing required data"}), 400
-        # Log the theft report (you can also save it to a file or database)
-        print(f"Theft Report: RFID={rfid}, RSU_ID={rsu_id}, Timestamp={timestamp}")
-        return jsonify({"status": "success", "message": "Theft reported successfully"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message":str(e)}),500
 
 
 

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
+    <title>BIKO</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+<style>
+        body {
+            margin: 0;
+            font-family: 'MyCustomFont', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .header {
+            background-color: #ff2a61;
+            color: rgb(255, 255, 255);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header a {
+            position: absolute;
+            left: 60px;
+            background-color: #ffffff;
+            color: #ff2a61;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header a:hover {
+            background-color: #ffffff;
+            color: rgb(0, 0, 0);
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        .center-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .btn {
+            background-color: #ffffff;
+            color: rgb(0, 0, 0);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #1f50ff;
+            color: white;
+        }
+
+        #station-selector {
+            margin: 20px auto;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .station-dropdown {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        #message {
+            margin-top: 20px;
+            text-align: center;
+            color: red;
+            font-size: 1rem;
+        }
+
+        /* Hide "Home" button on mobile devices */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .header a {
+                display: none; /* Hide the home button on small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/login">Home</a>
+        <h1>Park Your Biko</h1>
+    </header>
+    
+    <!-- Centered Content -->
+    <div class="center-container">
+        <!-- Station Selector -->
+        <div id="station-selector">
+            <select id="station-dropdown" class="station-dropdown">
+                <option value="" disabled selected>Loading stations...</option>
+            </select>
+        </div>
+
+        <!-- Bike Toggle Button -->
+        <a href="#">
+            <button id="bike-toggle-btn" class="btn">Loading...</button>
+        </a>
+    </div>
+
+    <div id="message"></div>
+
+    <script>
+// Fetch bike status and update the UI dynamically
+async function fetchBikeStatus() {
+    try {
+        const response = await fetch('/api/get_bike_status');
+        const data = await response.json();
+        const button = document.getElementById('bike-toggle-btn');
+        const dropdown = document.getElementById('station-dropdown');
+
+        if (data.status === "success") {
+            const { bike_status, bike_id, current_station, stations } = data;
+
+            // Update the button text and style
+            updateButton(bike_status, bike_id);
+
+            // Update the dropdown options
+            populateStations(stations, bike_status === 1 ? current_station : null);
+        } else {
+            showMessage("Failed to fetch bike status");
+        }
+    } catch (error) {
+        console.error("Error fetching bike status:", error);
+        showMessage("Unable to load bike status");
+    }
+}
+
+// Update the button text and style based on bike status
+function updateButton(status, bikeId) {
+    const button = document.getElementById('bike-toggle-btn');
+    button.dataset.bikeId = bikeId; // Store bike ID in button
+
+    if (status === 1) {
+        button.innerText = "UNLOCK";
+        button.style.backgroundColor = "#00ab00"; // Green for unlock
+    } else {
+        button.innerText = "LOCK";
+        button.style.backgroundColor = "#1f50ff"; // Blue for lock
+    }
+}
+
+function populateStations(stations, currentStation) {
+    const dropdown = document.getElementById('station-dropdown');
+    dropdown.innerHTML = ''; // Clear the dropdown
+
+    if (currentStation) {
+        // If the bike is locked, show only the current station
+        const option = document.createElement('option');
+        option.value = currentStation;
+        option.textContent = `${currentStation}`;
+        dropdown.appendChild(option);
+        dropdown.disabled = true; // Disable dropdown since it's locked
+    } else {
+        // If the bike is unlocked, show all available stations
+        stations.forEach(station => {
+            const option = document.createElement('option');
+            option.value = station.name; // Use station name
+            option.textContent = `${station.name} (${station.occupancy || "N/A"}%)`;
+            dropdown.appendChild(option);
+        });
+        dropdown.disabled = false; // Enable dropdown
+    }
+}
+
+
+document.getElementById('bike-toggle-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    const button = event.target;
+    const bikeId = button.dataset.bikeId;
+
+    // Show "Loading..." and disable the button
+    const originalText = button.innerText;
+    button.innerText = "Loading...";
+    button.disabled = true;
+
+    try {
+        let response;
+        if (originalText === "UNLOCK") {
+            response = await fetch('/toggle_bike_status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ bike_id: bikeId })
+            });
+        } else if (originalText === "LOCK") {
+            const dropdown = document.getElementById('station-dropdown');
+            const stationName = dropdown.value;
+
+            response = await fetch('/toggle_bike_status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ bike_id: bikeId, station_name: stationName })
+            });
+        }
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+            showMessage(data.message, "success"); // Show success message
+            fetchBikeStatus(); // Refresh the dropdown and button
+        } else {
+            showMessage(data.message, "error"); // Show error message from backend
+        }
+    } catch (error) {
+        console.error("Error during operation:", error);
+        showMessage("An unexpected error occurred. Please try again.", "error");
+    }
+
+    // Revert the button to its original state
+    button.innerText = originalText;
+    button.disabled = false;
+});
+
+
+
+
+
+function showMessage(message, type = "success") {
+    const messageDiv = document.getElementById('message');
+    messageDiv.textContent = message;
+
+    if (type === "success") {
+        messageDiv.style.color = "green"; // Green for success
+    } else if (type === "error") {
+        messageDiv.style.color = "red"; // Red for errors
+    }
+
+    setTimeout(() => {
+        messageDiv.textContent = ""; // Clear message after 5 seconds
+    }, 5000);
+}
+
+
+// Fetch bike status and stations on page load
+fetchBikeStatus();
+
+
+    </script>
+</body>
+</html>

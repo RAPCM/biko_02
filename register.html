@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
+    <title>BIKO</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .header {
+            background-color: #ff2a61;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header a {
+            position: absolute;
+            left: 60px;
+            background-color: white;
+            color: #ff2a61;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Hide "Home" button on mobile devices */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .header a {
+                display: none; /* Hide the home button on small screens */
+            }
+
+            .login-container {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .btn {
+                font-size: 0.9rem;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/">Home</a>
+        <h1>Register</h1>
+    </header>
+    <main class="main-content">
+        <div class="login-container">
+            
+
+            <form action="/register" method="POST">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" placeholder="Your name here..." required>
+                
+                <label for="email">Email:</label>
+                <input type="text" id="email" name="email" placeholder="Your email here..." required>
+                
+                <label for="phone">Phone Number:</label>
+                <input type="text" id="phone" name="phone" placeholder="Your phone number here..." required>
+                
+                <label for="bike_name">Biko Name:</label>
+                <input type="text" id="bike_name" name="bike_name" placeholder="Enter your bike name here..." required>
+
+                <label for="bike_id">Biko ID:</label>
+                <input type="text" id="bike_id" name="bike_id" placeholder="Enter a unique Bike ID..." required>
+                
+                <button type="submit" class="btn">Register</button>
+
+                <!-- Display error or success message -->
+            {% if error_message %}
+                <p style="color: red; font-size: 1rem;">{{ error_message }}</p>
+            {% elif success_message %}
+                <p style="color: green;">{{ success_message }}</p>
+            {% endif %}
+            </form>
+        </div>
+        <p>SAFETY IN MOTION</p>
+    </main>
+</body>
+</html>

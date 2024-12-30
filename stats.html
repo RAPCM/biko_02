@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
+    <title>BIKO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'MyCustomFont', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            background-color: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .header {
+            background-color: #ff2a61;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header a {
+            position: absolute;
+            left: 60px;
+            background-color: white;
+            color: #ff2a61;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header a:hover {
+            background-color: #fff;
+            color: rgb(0, 0, 0);
+        }
+
+        .main-content {
+            padding: 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .stats-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .stats-card h2 {
+            margin: 0 0 10px;
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .stats-card p {
+            margin: 5px 0;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .stats-card .highlight {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ff2a61;
+        }
+
+        @media (max-width: 768px) {
+            .header a {
+                display: none; /* Hide home button */
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .stats-card {
+                padding: 15px;
+            }
+
+            .stats-card h2 {
+                font-size: 1.2rem;
+            }
+
+            .stats-card .highlight {
+                font-size: 1.8rem;
+            }
+        
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr; /* Single column for small screens */
+                margin-top: -100px;
+            }
+
+            .stats-card {
+                padding: 15px;
+            }
+
+            .stats-card .highlight {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/login">Home</a>
+        <h1>{{ user }}'s Ride Stats</h1>
+    </header>
+    <main class="main-content">
+        <div class="stats-grid">
+            <!-- Total Kilometers -->
+            <div class="stats-card">
+                <h2>Total Kilometers</h2>
+                <p><span class="highlight">{{ stats.total_km }}</span> km</p>
+            </div>
+
+            <!-- Total Trip Time -->
+            <div class="stats-card">
+                <h2>Total Trip Time</h2>
+                <p><span class="highlight">{{ stats.total_time }}</span> hours</p>
+            </div>
+
+            <!-- Average Speed -->
+            <div class="stats-card">
+                <h2>Average Speed</h2>
+                <p><span class="highlight">{{ stats.average_speed }}</span> km/h</p>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

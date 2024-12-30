@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="static/images/mini_logo.png"/>
+    <title>BIKO</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <header class="header">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BIKO Logo" class="logo">
+    </header>
+
+    <main class="main-content">
+        <div class="button-container">
+            
+            <a href="/map" class="btn feature-btn">
+                <span class="icon">🗺️</span> Map
+            </a>
+            <a href="/analytics" class="btn feature-btn">
+                <span class="icon">📊</span> Analytics
+            </a>
+            <a href="/notifications" class="btn feature-btn">
+                <span class="icon">🔔</span> Notifications
+            </a>
+            <a href="/stats" class="btn feature-btn">
+                <span class="icon">🚲</span> Ride Stats
+            </a>
+            <a href="/camera" class="btn feature-btn">
+                <span class="icon">🎥</span> Live Camera
+            </a>
+            <a href="/park" class="btn feature-btn">
+                <span class="icon">⚡</span> Park
+            </a>
+            
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </main>
+</body>
+
+
+
+
+</html>
