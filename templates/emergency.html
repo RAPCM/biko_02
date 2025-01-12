@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BIKO Emergency Call</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .phone-animation {
+      display:inline;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    .phone-icon {
+      font-size: 70px;
+      margin-right: 10px;
+      animation: shake 1s infinite;
+    }
+
+    .dots {
+      display: inline-block;
+      font-size: 35px;
+    }
+
+    @keyframes blink {
+      0%, 20% { color: transparent; }
+      50% { color: #555; }
+      100% { color: transparent; }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .dot {
+      animation: blink 1.5s infinite;
+    }
+
+    .dot:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+
+    .dot:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+
+    .calling-text {
+      font-size: 20px;
+      color: #555;
+    }
+
+    .container a {
+            left: 40px;
+            background-color: #ff2a61;
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+    .container a:hover {
+            background-color: #000;
+
+        }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="phone-animation">
+      <div class="phone-icon">📞</div>
+      <div class="dots">
+        <span class="dot">.</span>
+        <span class="dot">.</span>
+        <span class="dot">.</span>
+      </div>
+    </div>
+    <p class="calling-text">Calling the BIKO CallCenter</p>
+    <a href="/login">Home</a>
+  </div>
+</body>
+</html>

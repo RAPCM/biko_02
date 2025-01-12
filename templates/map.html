@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
     <style>
-
         body {
             margin: 0;
             font-family: 'MyCustomFont', Arial, sans-serif;
@@ -62,19 +61,40 @@
             width: 100%;
         }
 
-        /* Hide "Home" button on mobile devices */
-        @media (max-width: 768px) {
-            .header {
-                padding: 20px;
-            }
+        .search-bar {
+            position: absolute;
+            top: 100px;
+            right: 30px;
+            z-index: 1000;
+        }
 
-            .header h1 {
-                font-size: 1.4rem;
-            }
+        .search-bar input {
+            width: 200px;
+            padding: 10px;
+            border: 2px solid #ff2a61;
+            border-radius: 20px;
+        }
 
-            .header a {
-                display: none; /* Hide the home button on small screens */
-            }
+        .suggestions {
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            width: 200px;
+            z-index: 1001;
+        }
+
+        .suggestions div {
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .suggestions div:hover {
+            background-color: #f0f0f0;
         }
     </style>
 </head>
@@ -85,8 +105,13 @@
     </header>
     <div id="map"></div>
 
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search station..." oninput="updateSuggestions()">
+        <div class="suggestions" id="suggestions"></div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
- <script>
+    <script>
         // Initialize the map and set its view to Lisbon
         const map = L.map('map').setView([38.7169, -9.1390], 13); // Lisbon coordinates
 
@@ -97,51 +122,59 @@
         }).addTo(map);
 
         // Add custom icons
-        const bikeIcon = L.icon({
-            iconUrl: '/static/images/butterfly.png',
-            iconSize: [30, 30], // Size of the icon
-            iconAnchor: [20, 40], // Anchor the icon at its base
-        });
-
         const stationIcon = L.icon({
             iconUrl: '/static/images/station.png',
-            iconSize: [40, 40], // Size of the icon
-            iconAnchor: [15, 30], // Anchor the icon at its base
+            iconSize: [40, 40],
+            iconAnchor: [15, 30],
         });
-
-        // Define bike locations
-        const bikeLocations = [
-            {% for bike in bike_locations %}
-                {
-                    coords: [{{ bike.coords.split(',')[0] }}, {{ bike.coords.split(',')[1] }}],
-                    popup: "Biko: {{ bike.popup }}"
-                },
-            {% endfor %}
-        ];
 
         // Define station locations
         const stationLocations = [
             {% for station in station_locations %}
                 {
+                    name: "{{ station.name }}",
                     coords: [{{ station.coords.split(',')[0] }}, {{ station.coords.split(',')[1] }}],
                     popup: "Occupation: {{ station.popup }}%"
                 },
             {% endfor %}
         ];
 
+        const markers = {};
+
         // Add markers for each station location
         stationLocations.forEach(location => {
             const marker = L.marker(location.coords, { icon: stationIcon }).addTo(map);
             marker.bindPopup(`<b>${location.popup}</b>`);
+            markers[location.name.toLowerCase()] = { marker, coords: location.coords };
         });
 
-        // Add markers for each bike location
-        bikeLocations.forEach(location => {
-            const marker = L.marker(location.coords, { icon: bikeIcon }).addTo(map);
-            marker.bindPopup(`<b>${location.popup}</b>`);
-        });
+        // Update suggestions based on user input
+        function updateSuggestions() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const suggestionsDiv = document.getElementById('suggestions');
+            suggestionsDiv.innerHTML = '';
 
-        
+            if (searchInput.trim() === '') {
+                return;
+            }
+
+            const matchingStations = stationLocations.filter(location => location.name.toLowerCase().includes(searchInput));
+
+            matchingStations.forEach(station => {
+                const suggestion = document.createElement('div');
+                suggestion.textContent = station.name;
+                suggestion.onclick = () => {
+                    map.flyTo(station.coords, 15, {
+                        duration: 1.5, // Duration of the transition in seconds
+                        easeLinearity: 0.25 // Smooth easing for the animation
+                    });
+                    markers[station.name.toLowerCase()].marker.openPopup();
+                    suggestionsDiv.innerHTML = ''; // Clear suggestions after selection
+                    document.getElementById('searchInput').value = station.name; // Fill input with selected name
+                };
+                suggestionsDiv.appendChild(suggestion);
+            });
+        }
     </script>
 </body>
 </html>

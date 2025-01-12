@@ -84,6 +84,8 @@
             justify-content: space-between;
             align-items: center;
             transition: all 0.3s ease-in-out;
+            text-decoration: none; /* Remove underline */
+            color: inherit; /* Ensure it takes the parent color */
         }
 
         .notification p {
@@ -108,7 +110,7 @@
 
         .notification.success {
             background-color: #e6ffe6;
-            border-left: 5px solid #4dff4d;
+            border-left: 5px solid #38b638;
         }
 
         .notification:hover {
@@ -135,12 +137,13 @@
     <main class="main-content">
         <div class="notifications">
             {% for notification in notifications %}
-            <div class="notification {{ notification.type }}">
+            <a href="/park" class="notification {{ notification.type }}">
                 <p>{{ notification.message }}</p>
                 <span class="time">{{ notification.time }}</span>
-            </div>
+            </a>
             {% endfor %}
         </div>
+        
     </main>
 </body>
 </html>

@@ -14,7 +14,6 @@
 
     <main class="main-content">
         <div class="button-container">
-            
             <a href="/map" class="btn feature-btn">
                 <span class="icon">🗺️</span> Map
             </a>
@@ -27,19 +26,22 @@
             <a href="/stats" class="btn feature-btn">
                 <span class="icon">🚲</span> Ride Stats
             </a>
+            <a href="/emergency" class="btn feature-btn">
+                <span class="icon">⚠️</span> Emergency
+            </a>
+            
+            <!-- Conditionally display the PARK button -->
+            {% if user_bike_id in detected_bikes %}
             <a href="/camera" class="btn feature-btn">
                 <span class="icon">🎥</span> Live Camera
             </a>
             <a href="/park" class="btn feature-btn">
                 <span class="icon">⚡</span> Park
             </a>
-            
+            {% endif %}
+
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
     </main>
 </body>
-
-
-
-
 </html>

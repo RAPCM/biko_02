@@ -79,54 +79,55 @@ def register():
 station_commands = {}
 
 import threading
-
 @app.route('/toggle_bike_status', methods=["POST"])
 def toggle_bike_status():
     global station_commands  # Ensure we are modifying the global variable
+
+    # Check if the user is logged in
     if "logged_in_user" not in session:
         return jsonify({"status": "error", "message": "Not logged in"}), 401
 
     # Load Excel data
     excel_data_sheet1 = load_excel("Sheet1")
-    station_data = load_excel("Sheet3")
     logged_in_user = session["logged_in_user"]
 
+    # Get the bike ID from the request
     request_data = request.get_json()
-    bike_id = str(request_data.get("bike_id"))  # Convert to string
-    station_name = request_data.get("station_name")
+    bike_id = str(request_data.get("bike_id"))
+
+    if not bike_id:
+        return jsonify({"status": "error", "message": "Bike ID is required"}), 400
 
     # Find the user's bike
     user_row_index = excel_data_sheet1[
         (excel_data_sheet1["user"] == logged_in_user) & (excel_data_sheet1["bike_id"] == int(bike_id))
     ].index
+
     if user_row_index.empty:
         return jsonify({"status": "error", "message": "Bike not found"}), 404
 
     user_row_index = user_row_index[0]
     current_status = excel_data_sheet1.at[user_row_index, "bike_status"]
 
+    # Toggle the bike status
     if current_status == 1:
         new_status = 0
         current_command = "unlock"
         excel_data_sheet1.at[user_row_index, "bike_park"] = None
         excel_data_sheet1.at[user_row_index, "bike_coord"] = None
     else:
-        if not station_name:
-            return jsonify({"status": "error", "message": "Station name is required to lock the bike"}), 400
-
-        station_row = station_data[station_data["statio"] == station_name]
-        if station_row.empty:
-            return jsonify({"status": "error", "message": "Station not found"}), 404
-
         new_status = 1
         current_command = "lock"
-        excel_data_sheet1.at[user_row_index, "bike_park"] = station_name
-        excel_data_sheet1.at[user_row_index, "bike_coord"] = station_row.iloc[0]["coord"]
+        excel_data_sheet1.at[user_row_index, "bike_park"] = "Locked"  # Placeholder
+        excel_data_sheet1.at[user_row_index, "bike_coord"] = "Unknown"  # Placeholder
 
+    # Update the station_commands for device communication
     station_commands["station"] = {"command": current_command, "bike_id": bike_id}
 
+    # Wait for device confirmation (up to 10 seconds)
     start_time = time.time()
     initial_confirmation = confirmation_status.get(bike_id)
+
     while True:
         updated_confirmation = confirmation_status.get(bike_id)
         if updated_confirmation != initial_confirmation:
@@ -134,13 +135,11 @@ def toggle_bike_status():
                 if updated_confirmation.get("success") is True:
                     excel_data_sheet1.at[user_row_index, "bike_status"] = new_status
                     save_excel(excel_data_sheet1, "Sheet1")
-                    print("DB UPDATED")
                     confirmation_status[bike_id] = None
                     station_commands = {}
-                    return jsonify({"status": "success", "message": f"Bike status updated to {'locked' if new_status == 1 else 'unlocked'}."})
+                    return jsonify({"status": "success", "message": f"Bike {'locked' if new_status == 1 else 'unlocked'} successfully."})
                 elif updated_confirmation.get("success") is False:
                     error_message = updated_confirmation.get("error", "Unknown error occurred")
-                    print("Mensagem de erro:", error_message)
                     confirmation_status[bike_id] = None
                     station_commands = {}
                     return jsonify({"status": "error", "message": error_message})
@@ -272,16 +271,72 @@ def get_bike_status():
 def index():
     return render_template('index.html')
 
+@app.route('/emergency')
+def emergency():
+    return render_template('emergency.html')
+
 @app.route('/nfc')
 def nfc():
     return render_template('nfc.html')
 
 @app.route('/park')
 def park():
-    return render_template('park.html')
+    # Retrieve the latest detected bike's RSU ID
+    latest_bike = next(iter(detected_bikes.values()), None)
+    rsu_id = latest_bike["rsu_id"] if latest_bike else "Unknown Station"
+    
+    return render_template('park.html', rsu_id=rsu_id)
+
+
+# Global variable to track detected bikes
+detected_bikes = {}
+# Timeout for bike detection (in seconds)
+BIKE_DETECTION_TIMEOUT = 10
+
+@app.route('/api/detect-bike', methods=['POST'])
+def detect_bike():
+    """
+    Receive a POST message with a bike ID from a station and store it in the detected_bikes.
+    """
+    global detected_bikes
+    try:
+        data = request.get_json()
+        bike_id = str(data.get("bike_id"))  # Ensure bike_id is a string
+        rsu_id = str(data.get("rsu_id"))
+        if not bike_id or not rsu_id:
+            return jsonify({"status": "error", "message": "Bike ID is required"}), 400
+
+        # Store both bike_id and rsu_id
+        detected_bikes[bike_id] = {"timestamp": time.time(), "rsu_id": rsu_id}
+
+        return jsonify({"status": "success", "message": f"Bike {bike_id} detected at RSU {rsu_id}"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+def clean_expired_bikes():
+    """
+    Remove bikes from detected_bikes that were detected more than the timeout period ago.
+    """
+    global detected_bikes
+    current_time = time.time()
+    detected_bikes = {
+        bike_id: data
+        for bike_id, data in detected_bikes.items()
+        if current_time - data["timestamp"] < BIKE_DETECTION_TIMEOUT  # Access the timestamp correctly
+    }
+
+@app.before_request
+def cleanup_bikes():
+    """
+    Cleanup expired bike detections before every request.
+    """
+    clean_expired_bikes()
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
+    global detected_bikes
+
     if request.method == "POST":
         # Get the username from the form input
         username = request.form.get("username")
@@ -289,14 +344,25 @@ def login():
         # Check if the username exists in the Excel file
         if username in excel_data["user"].values:
             session["logged_in_user"] = username  # Store username in session
-            return render_template("login.html", user=username)  # Load the menu page
+            user_data = excel_data[excel_data["user"] == username].iloc[0]
+            user_bike_id = str(user_data["bike_id"])  # Fetch the user's bike ID
+
+            return render_template("login.html", user=username, user_bike_id=user_bike_id, detected_bikes=detected_bikes)
         else:
             # Send an error message back to the index page
             message = "User not found"
             return render_template("index.html", message=message)
-    
+
     # Handle GET request
-    return render_template("login.html", user="Guest")
+    if "logged_in_user" in session:
+        username = session["logged_in_user"]
+        user_data = excel_data[excel_data["user"] == username].iloc[0]
+        user_bike_id = str(user_data["bike_id"])  # Fetch the user's bike ID
+        return render_template("login.html", user=username, user_bike_id=user_bike_id, detected_bikes=detected_bikes)
+
+    return render_template("login.html", user="Guest", user_bike_id=None, detected_bikes={})
+
+
 
 
 # Shared list to store notifications (in-memory solution)
@@ -428,27 +494,25 @@ def analytics():
 
 @app.route("/map")
 def map_view():
-    # Load data from the Excel file
-    bike_data = pd.read_excel(EXCEL_FILE, sheet_name="Sheet1")
     station_data = pd.read_excel(EXCEL_FILE, sheet_name="Sheet3")  # Load station data
 
-    # Extract station coordinates and occupancy
     station_locations = []
     for _, row in station_data.iterrows():
-        if pd.notna(row["coord"]) and pd.notna(row["occup"]):
+        if pd.notna(row["coord"]) and pd.notna(row["occup"]) and pd.notna(row["statio"]):  # Ensure name is present
             station_locations.append({
+                "name": row["statio"],
                 "coords": row["coord"],
                 "popup": row["occup"]
             })
 
-    # Extract bike coordinates and locations for single-bike-per-user
+    bike_data = pd.read_excel(EXCEL_FILE, sheet_name="Sheet1")
     bike_locations = []
     for _, row in bike_data.iterrows():
         if pd.notna(row["bike_coord"]) and pd.notna(row["bike_park"]):
             bike_locations.append({"coords": row["bike_coord"], "popup": row["bike_name"]})
 
-    # Render map.html with bike and station location data
     return render_template("map.html", station_locations=station_locations, bike_locations=bike_locations)
+
 
 @app.route('/logout')
 def logout():
