@@ -30,6 +30,8 @@
             position: relative;
         }
 
+
+
         .header h1 {
             margin: 0;
             font-size: 1.5rem;
@@ -52,6 +54,16 @@
         .header a:hover {
             background-color: #fff;
             color: rgb(0, 0, 0);
+        }
+
+         @media (max-width: 768px) {
+            .header a {
+                display: none; /* Hide home button */
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
         }
 
         .btn {

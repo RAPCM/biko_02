@@ -148,6 +148,30 @@
             markers[location.name.toLowerCase()] = { marker, coords: location.coords };
         });
 
+        // Add custom bike icon
+        const bikeIcon = L.icon({
+            iconUrl: '/static/images/butterfly.png',  // Make sure this image exists
+            iconSize: [30, 30],
+            iconAnchor: [15, 30],
+        });
+
+        // Define bike locations
+        const bikeLocations = [
+            {% for bike in bike_locations %}
+                {
+                    coords: [{{ bike.coords.split(',')[0] }}, {{ bike.coords.split(',')[1] }}],
+                    popup: "{{ bike.popup }}"
+                },
+            {% endfor %}
+        ];
+
+        // Add markers for each bike location
+        bikeLocations.forEach(bike => {
+            const marker = L.marker(bike.coords, { icon: bikeIcon }).addTo(map);
+            marker.bindPopup(`<b>Bike: ${bike.popup}</b>`);
+        });
+
+
         // Update suggestions based on user input
         function updateSuggestions() {
             const searchInput = document.getElementById('searchInput').value.toLowerCase();
